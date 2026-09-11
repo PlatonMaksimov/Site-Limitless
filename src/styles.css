@@ -60,8 +60,8 @@ h3 { letter-spacing: -.7px; }
 .skip-link:focus { top: 8px; }
 .header { border-bottom: 1px solid var(--line); background: rgba(247,248,250,.98); position: sticky; top: 0; z-index: 20; }
 .header-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.brand { display: inline-flex; align-items: center; gap: 6px; font-size: 28px; font-weight: 750; letter-spacing: -1.5px; line-height: 1; min-height: 44px; }
-.brand-symbol { color: var(--blue); font-size: 37px; font-weight: 600; margin-top: -3px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-size: 28px; font-weight: 750; letter-spacing: -1.5px; line-height: 1; min-height: 44px; }
+.brand-icon { display: block; width: 32px; height: 32px; flex-shrink: 0; }
 .desktop-nav { display: none; gap: 27px; font-size: 13px; }
 .desktop-nav a { padding-block: 14px; }
 .desktop-nav a:hover, .footer a:not(.brand):hover { color: var(--blue); }
