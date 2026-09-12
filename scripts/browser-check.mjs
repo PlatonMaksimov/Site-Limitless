@@ -110,10 +110,13 @@ try {
   const firstReceived = new Promise((resolve) => { resolveFirst = resolve; });
   let releaseFirst;
   const firstRelease = new Promise((resolve) => { releaseFirst = resolve; });
+  const requestKeys = [];
   await page.route('**/api/leads', async (route) => {
     requests++;
     assert.equal(route.request().method(), 'POST');
     assert.equal(route.request().postDataJSON().consent, true);
+    requestKeys.push(route.request().headers()['idempotency-key']);
+    assert.match(requestKeys.at(-1), /^[\da-f-]{36}$/i);
     if (requests === 1) {
       resolveFirst();
       await firstRelease;
@@ -142,6 +145,14 @@ try {
   assert.match(await page.locator('#form-status').innerText(), /не подтвердил/);
   assert.equal(await page.locator('#name').inputValue(), 'Тест');
   assert.equal(await page.locator('.form-submit').isDisabled(), false);
+  await page.locator('.form-submit').click();
+  await page.waitForFunction(() => document.querySelector('#form-status').dataset.state === 'error');
+  assert.equal(requestKeys[1], requestKeys[2], 'Retries retain the idempotency key');
+  assert.notEqual(requestKeys[0], requestKeys[1], 'New leads get a new key after success');
+  await page.locator('#message').fill('Изменённая тестовая задача');
+  await page.locator('.form-submit').click();
+  await page.waitForFunction(() => document.querySelector('#form-status').dataset.state === 'error');
+  assert.notEqual(requestKeys[2], requestKeys[3], 'Edited payload gets a new key');
   results.push({ confirmedSuccess: 'passed (mock response)', failedConfirmation: 'passed', duplicateSubmission: 'passed', dataRetainedOnError: 'passed' });
   await page.close();
 
@@ -155,6 +166,21 @@ try {
   assert.match(await blocked.locator('#demo-notice').innerText(), /документ/);
   results.push({ missingPrivacyBlocksSubmission: 'passed' });
   await blocked.close();
+
+  const runtimeBlocked = await browser.newPage();
+  trackErrors(runtimeBlocked);
+  await runtimeBlocked.route('**/runtime-config.js', (route) => route.fulfill({
+    contentType: 'text/javascript',
+    body: `globalThis.LIMITLESS_RUNTIME = ${JSON.stringify({
+      form: { endpoint: '/api/leads' }, privacyUrl: '', available: false, reason: 'https',
+    })};`,
+  }));
+  await runtimeBlocked.goto(origin);
+  assert.equal(await runtimeBlocked.locator('#name').isDisabled(), true);
+  assert.equal(await runtimeBlocked.locator('#contact-input').isDisabled(), true);
+  assert.match(await runtimeBlocked.locator('#demo-notice').innerText(), /защищённое соединение/);
+  results.push({ runtimeConfiguration: 'passed', httpPersonalDataFieldsDisabled: 'passed', idempotentRetry: 'passed' });
+  await runtimeBlocked.close();
   assert.deepEqual(errors, [], 'No browser errors');
   await writeFile(new URL('browser-report.json', artifactDir), JSON.stringify({ origin, results, browserErrors: errors }, null, 2));
   console.log(JSON.stringify({ origin, results, browserErrors: errors }, null, 2));

@@ -1,0 +1,35 @@
+[Unit]
+Description=Limitless API and Telegram worker
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=limitless
+Group=limitless
+WorkingDirectory=/opt/limitless/current
+EnvironmentFile=/etc/limitless/limitless.env
+ExecStart=/usr/bin/node backend/main.mjs
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=45
+UMask=0077
+StateDirectory=limitless
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/limitless
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+LockPersonality=true
+RestrictSUIDSGID=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

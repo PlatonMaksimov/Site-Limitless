@@ -5,3 +5,9 @@ artifacts/
 .env
 .env.*
 !.env.example
+data/
+*.sqlite
+*.sqlite-*
+*.pem
+*.key
+*.tar.gz

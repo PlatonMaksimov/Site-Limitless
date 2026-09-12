@@ -31,10 +31,18 @@ test('success only with explicit server confirmation', async () => {
   const result = await sendLead(lead, settings, async (_url, options) => {
     payload = JSON.parse(options.body);
     assert.equal(options.method, 'POST');
+    assert.match(options.headers['Idempotency-Key'], /^[\da-f-]{36}$/i);
+    assert.equal(options.redirect, 'error');
     return { ok: true, json: async () => ({ ok: true }) };
   });
   assert.deepEqual(result, { demo: false });
   assert.deepEqual(payload, lead);
+});
+test('retries can provide a stable idempotency key', async () => {
+  await sendLead(lead, settings, async (_url, options) => {
+    assert.equal(options.headers['Idempotency-Key'], '00000000-0000-4000-8000-000000000000');
+    return { ok: true, json: async () => ({ ok: true }) };
+  }, { idempotencyKey: '00000000-0000-4000-8000-000000000000' });
 });
 test('rejects HTTP errors, negative/missing/non-JSON confirmations', async () => {
   for (const response of [

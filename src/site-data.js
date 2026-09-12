@@ -9,6 +9,15 @@ export const config = {
   commercial: { prices: null, timelines: null },
 };
 
+// Only explicit public configuration is provided by the same-origin backend.
+const runtime = globalThis.LIMITLESS_RUNTIME;
+if (runtime && typeof runtime === 'object') {
+  config.form = { ...config.form, ...runtime.form };
+  config.privacyUrl = runtime.privacyUrl || '';
+  config.available = runtime.available === true;
+  config.unavailableReason = runtime.reason || 'setup';
+}
+
 export const projects = [
   {
     id: 'forma', name: 'FORMA', category: 'Архитектура · Корпоративный сайт',

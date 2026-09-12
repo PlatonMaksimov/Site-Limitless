@@ -15,7 +15,7 @@ export function validateLead(values) {
   return errors;
 }
 
-export async function sendLead(values, settings, fetcher = fetch) {
+export async function sendLead(values, settings, fetcher = fetch, options = {}) {
   if (!settings.form.endpoint) return { demo: true };
   if (!settings.privacyUrl) throw new Error('Отправка пока недоступна: документ об обработке данных ещё не добавлен.');
   const endpoint = new URL(settings.form.endpoint, globalThis.location?.origin || 'http://localhost');
@@ -26,12 +26,15 @@ export async function sendLead(values, settings, fetcher = fetch) {
   try {
     const response = await fetcher(endpoint.href, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Idempotency-Key': options.idempotencyKey || crypto.randomUUID() },
       credentials: 'same-origin',
       redirect: 'error',
       signal: controller.signal,
       body: JSON.stringify(values),
     });
+    if (response.status === 429) throw new Error('Слишком много попыток. Подождите 10 минут и попробуйте снова.');
+    if (response.status === 503) throw new Error('Приём заявок временно недоступен. Попробуйте немного позже.');
+    if (response.status === 409) throw new Error('Данные заявки изменились. Обновите страницу перед новой отправкой.');
     if (!response.ok) throw new Error('Не удалось отправить заявку. Попробуйте ещё раз немного позже.');
     let result;
     try { result = await response.json(); } catch { throw new Error('Сервер не подтвердил приём заявки. Попробуйте позже.'); }

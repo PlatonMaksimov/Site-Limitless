@@ -102,16 +102,22 @@ function setupForm() {
   const submit = $('.form-submit');
   const submitLabel = $('#submit-label');
   const isDemo = !config.form.endpoint;
-  const configured = !isDemo && Boolean(safeDocumentUrl(config.privacyUrl));
+  const configured = !isDemo && config.available !== false && Boolean(safeDocumentUrl(config.privacyUrl));
   let pending = false;
   let revision = 0;
+  let lastAttempt = null;
   if (configured) {
     $('#demo-notice').hidden = true;
     submitLabel.textContent = 'Отправить заявку';
   } else if (!isDemo) {
-    $('#demo-notice').textContent = 'Приём заявок пока недоступен: необходимо добавить документ об обработке персональных данных.';
+    $('#demo-notice').textContent = config.unavailableReason === 'https'
+      ? 'Приём заявок пока закрыт: настраиваем защищённое соединение. Не вводите персональные данные.'
+      : !config.privacyUrl
+        ? 'Приём заявок пока недоступен: необходимо добавить документ об обработке персональных данных.'
+        : 'Приём заявок временно недоступен. Пожалуйста, зайдите немного позже.';
     submitLabel.textContent = 'Отправка недоступна';
     submit.disabled = true;
+    form.querySelectorAll('input, select, textarea').forEach((field) => { field.disabled = true; });
   }
   function clearError(name) {
     const input = form.elements.namedItem(name);
@@ -176,11 +182,16 @@ function setupForm() {
     form.setAttribute('aria-busy', 'true');
     submitLabel.textContent = isDemo ? 'Проверяем…' : 'Отправляем…';
     try {
-      const result = await sendLead(values, config);
+      const serialized = JSON.stringify(values);
+      if (!isDemo && lastAttempt?.serialized !== serialized) {
+        lastAttempt = { serialized, idempotencyKey: crypto.randomUUID() };
+      }
+      const result = await sendLead(values, config, fetch, lastAttempt || {});
       status.dataset.state = result.demo ? 'demo' : 'success';
       status.textContent = result.demo
         ? 'Всё заполнено верно. Это деморежим: заявка не отправлена, данные никуда не переданы.'
         : 'Заявка принята. Спасибо! Вернёмся к вам по указанному контакту.';
+      if (!result.demo) lastAttempt = null;
       if (!result.demo && sentRevision === revision) form.reset();
     } catch (error) {
       status.dataset.state = 'error';
